@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>MIDI Pad WebApp</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #151922;
+      --panel2: #1a2030;
+      --text: #e8ecf6;
+      --muted: #9aa4b2;
+      --accent: #00e5a8;
+      --danger: #ff5a6a;
+      --border: #2a3242;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: radial-gradient(circle at top, #182033 0%, var(--bg) 60%);
+      color: var(--text);
+    }
+
+    header {
+      padding: 20px 16px 10px;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.4;
+      margin: 0;
+    }
+
+    .wrap {
+      width: min(1400px, 96vw);
+      margin: 0 auto;
+      padding: 10px 0 24px;
+    }
+
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      margin: 10px 0 18px;
+    }
+
+    button, .btn {
+      border: 0;
+      border-radius: 12px;
+      background: #263044;
+      color: var(--text);
+      padding: 12px 16px;
+      cursor: pointer;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      transition: transform 0.08s ease, background 0.15s ease, opacity 0.15s ease;
+      user-select: none;
+    }
+
+    button:hover, .btn:hover { transform: translateY(-1px); }
+    button:active, .btn:active { transform: translateY(1px); }
+    button.active { background: var(--accent); color: #071014; }
+    button.danger.active, button.danger { background: #4b1820; }
+    button.danger:hover { background: #6f2130; }
+
+    .pill {
+      background: #0f1725;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 10px 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .pads {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .pad {
+      --pad-color: #3a465e;
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.1)), var(--pad-color);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      min-height: 170px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+      cursor: pointer;
+      transition: transform 0.08s ease, filter 0.12s ease, box-shadow 0.12s ease;
+      user-select: none;
+    }
+
+    .pad:hover { transform: translateY(-2px); filter: brightness(1.03); }
+    .pad.active {
+      transform: scale(1.02);
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.08), 0 0 30px rgba(0,229,168,0.2);
+      filter: brightness(1.1);
+    }
+
+    .pad-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .pad-title {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .pad-key-badge {
+      min-width: 36px;
+      height: 30px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid rgba(255,255,255,0.12);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .pad-sample {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: 14px;
+      color: rgba(255,255,255,0.92);
+      min-height: 62px;
+      padding: 0 8px;
+      line-height: 1.35;
+    }
+
+    .pad-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .key-input {
+      width: 100%;
+      height: 40px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(6, 10, 18, 0.35);
+      color: white;
+      text-align: center;
+      font-size: 16px;
+      outline: none;
+    }
+
+    .upload-label {
+      height: 40px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .upload-label input { display: none; }
+
+    .section {
+      margin-top: 20px;
+      background: rgba(10, 14, 22, 0.72);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .section h2 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+
+    .loops {
+      display: grid;
+      gap: 10px;
+    }
+
+    .loop-item {
+      display: grid;
+      grid-template-columns: 1fr auto auto auto;
+      gap: 8px;
+      align-items: center;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 10px;
+    }
+
+    .loop-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 13px;
+      min-width: 0;
+    }
+
+    .loop-name {
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .loop-item button {
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+    }
+
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 800px) {
+      .loop-item {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+   @media (max-width: 500px) {
+     /* Adjust pads for small screens like iPhone 11 */
+     .pads {
+       grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+     }
+     .pad {
+       min-height: 150px;
+     }
+     button, .btn {
+       padding: 14px 20px;
+       font-size: 16px;
+       touch-action: manipulation;
+     }
+     .topbar {
+       gap: 8px;
+     }
+   }
+
+   body {
+     padding-top: env(safe-area-inset-top);
+     padding-bottom: env(safe-area-inset-bottom);
+     -webkit-tap-highlight-color: transparent;
+   }
+
+   </style>
+</head>
+<body>
+  <header>
+    <h1>MIDI Pad WebApp</h1>
+    <p class="sub">Upload your own samples to any pad, assign keys, record loops, save many patterns, and play live on top.</p>
+  </header>
+
+  <div class="wrap">
+    <div class="topbar">
+      <button id="recordBtn">⏺ Record</button>
+      <button id="stopBtn" class="danger">⏹ Stop & Save</button>
+      <button id="stopAllBtn">⏭ Stop All Loops</button>
+      <span class="pill" id="statusPill">Ready</span>
+    </div>
+
+    <div class="pads" id="pads"></div>
+
+    <div class="section">
+      <h2>Saved Loops</h2>
+      <div class="loops" id="loopsList"></div>
+      <div class="small">
+        Click a pad to play it. Upload your own sample into any pad. Change the key letter in the pad card. Press Record, play your pattern, then Stop & Save to add it to the loop list. You can keep playing live while loops are running.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const padColors = [
+      '#d94862', '#f4a261', '#2a9d8f', '#3a86ff',
+      '#8338ec', '#ef476f', '#06d6a0', '#ffb703',
+      '#8ecae6', '#fb8500', '#9b5de5', '#00b4d8',
+      '#f15bb5', '#4cc9f0', '#90be6d', '#c77dff'
+    ];
+
+    const padState = Array.from({ length: 16 }, (_, i) => ({
+      index: i,
+      key: i === 0 ? 'a' : i === 1 ? 's' : i === 2 ? 'd' : i === 3 ? 'f' : i === 4 ? 'g' : i === 5 ? 'h' : i === 6 ? 'j' : i === 7 ? 'k' : i === 8 ? 'l' : i === 9 ? 'q' : i === 10 ? 'w' : i === 11 ? 'e' : i === 12 ? 'r' : i === 13 ? 't' : i === 14 ? 'y' : 'u',
+      color: padColors[i % padColors.length],
+      sampleName: 'No sample loaded',
+      buffer: null,
+      gain: 1
+    }));
+
+    const keyToPad = new Map();
+    const activeKeys = new Set();
+
+    let ctx = null;
+    let master = null;
+
+    let recording = false;
+    let recordStart = 0;
+    let liveRecording = [];
+
+    const loops = []; // saved loops
+    let schedulerRunning = false;
+    let lastSchedulerTime = 0;
+
+    const els = {
+      pads: document.getElementById('pads'),
+      loopsList: document.getElementById('loopsList'),
+      recordBtn: document.getElementById('recordBtn'),
+      stopBtn: document.getElementById('stopBtn'),
+      stopAllBtn: document.getElementById('stopAllBtn'),
+      statusPill: document.getElementById('statusPill')
+    };
+
+    function setStatus(text) {
+      els.statusPill.textContent = text;
+    }
+
+    function ensureAudio() {
+      if (!ctx) {
+        ctx = new (window.AudioContext || window.webkitAudioContext)();
+        master = ctx.createGain();
+        master.gain.value = 0.92;
+        master.connect(ctx.destination);
+      }
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      if (!schedulerRunning) {
+        schedulerRunning = true;
+        requestAnimationFrame(schedulerTick);
+      }
+    }
+
+    function renderPads() {
+      els.pads.innerHTML = '';
+      keyToPad.clear();
+
+      padState.forEach((pad, i) => {
+        keyToPad.set(pad.key.toLowerCase(), i);
+
+        const card = document.createElement('div');
+        card.className = 'pad';
+        card.id = `pad-${i}`;
+        card.style.setProperty('--pad-color', pad.color);
+        card.innerHTML = `
+          <div class="pad-head">
+            <div class="pad-title">Pad ${i + 1}</div>
+            <div class="pad-key-badge" id="badge-${i}">${pad.key}</div>
+          </div>
+          <div class="pad-sample" id="sample-${i}">${escapeHtml(pad.sampleName)}</div>
+          <div class="pad-controls">
+            <input class="key-input" id="key-${i}" maxlength="1" value="${pad.key}" title="Assign keyboard key">
+            <label class="upload-label" title="Upload audio sample">
+              Upload
+              <input type="file" accept="audio/*" id="file-${i}">
+            </label>
+          </div>
+        `;
+
+        card.addEventListener('pointerdown', () => {
+          ensureAudio();
+          triggerPad(i, { record: true });
+        });
+
+        els.pads.appendChild(card);
+
+        const keyInput = card.querySelector(`#key-${i}`);
+        const fileInput = card.querySelector(`#file-${i}`);
+
+        keyInput.addEventListener('input', (e) => {
+          const newKey = (e.target.value || '').toLowerCase().slice(0, 1);
+          const oldKey = pad.key.toLowerCase();
+          if (keyToPad.get(oldKey) === i) keyToPad.delete(oldKey);
+
+          pad.key = newKey;
+          if (newKey) keyToPad.set(newKey, i);
+          document.getElementById(`badge-${i}`).textContent = newKey || '·';
+        });
+
+        fileInput.addEventListener('change', async (e) => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          ensureAudio();
+          try {
+            const arrayBuffer = await file.arrayBuffer();
+            const buffer = await ctx.decodeAudioData(arrayBuffer);
+            pad.buffer = buffer;
+            pad.sampleName = file.name;
+            document.getElementById(`sample-${i}`).textContent = file.name;
+            setStatus(`Loaded sample on Pad ${i + 1}`);
+          } catch (err) {
+            console.error(err);
+            setStatus('Could not load audio file');
+          }
+          e.target.value = '';
+        });
+      });
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function flashPad(index) {
+      const el = document.getElementById(`pad-${index}`);
+      if (!el) return;
+      el.classList.add('active');
+      clearTimeout(el._flashTimer);
+      el._flashTimer = setTimeout(() => el.classList.remove('active'), 120);
+    }
+
+    function playDefaultTone(index, when = 0) {
+      if (!ctx) return;
+      const startTime = Math.max(ctx.currentTime, when);
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+
+      osc.type = 'triangle';
+      osc.frequency.value = 150 + index * 22;
+      filter.type = 'lowpass';
+      filter.frequency.value = 1800;
+
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.35, startTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.25);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(master);
+
+      osc.start(startTime);
+      osc.stop(startTime + 0.28);
+    }
+
+    function playBuffer(buffer, gainAmount = 1, when = 0) {
+      if (!ctx || !buffer) return;
+      const startTime = Math.max(ctx.currentTime, when);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      const gain = ctx.createGain();
+      gain.gain.value = gainAmount;
+      source.connect(gain);
+      gain.connect(master);
+      source.start(startTime);
+    }
+
+    function triggerPad(index, opts = {}) {
+      ensureAudio();
+      const pad = padState[index];
+      if (!pad) return;
+
+      const targetTime = opts.when ?? ctx.currentTime;
+      flashPad(index);
+
+      if (pad.buffer) {
+        playBuffer(pad.buffer, pad.gain, targetTime);
+      } else {
+        playDefaultTone(index, targetTime);
+      }
+
+      const isUserAction = opts.record !== false && !opts.fromLoop;
+      if (recording && isUserAction) {
+        liveRecording.push({
+          padIndex: index,
+          time: Math.max(0, targetTime - recordStart)
+        });
+      }
+    }
+
+    function startRecording() {
+      ensureAudio();
+      recording = true;
+      recordStart = ctx.currentTime;
+      liveRecording = [];
+      els.recordBtn.classList.add('active');
+      els.stopBtn.classList.remove('active');
+      setStatus('Recording...');
+    }
+
+    function stopAndSaveRecording() {
+      if (!recording) return;
+      ensureAudio();
+      recording = false;
+      els.recordBtn.classList.remove('active');
+      els.stopBtn.classList.add('active');
+
+      const now = ctx.currentTime;
+      const duration = Math.max(0.5, now - recordStart);
+      const sorted = liveRecording.slice().sort((a, b) => a.time - b.time);
+
+      if (sorted.length === 0) {
+        setStatus('Nothing recorded');
+        return;
+      }
+
+      const loop = {
+        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
+        name: `Loop ${loops.length + 1}`,
+        duration,
+        events: sorted,
+        playing: false,
+        startTime: 0,
+        scheduledCycleMarks: new Map()
+      };
+
+      loops.unshift(loop);
+      renderLoops();
+      setStatus(`Saved ${loop.name}`);
+    }
+
+    function toggleLoop(loopId) {
+      ensureAudio();
+      const loop = loops.find(l => l.id === loopId);
+      if (!loop) return;
+
+      if (!loop.playing) {
+        loop.playing = true;
+        loop.startTime = ctx.currentTime + 0.05;
+        loop.scheduledCycleMarks.clear();
+        setStatus(`${loop.name} playing`);
+      } else {
+        loop.playing = false;
+        loop.scheduledCycleMarks.clear();
+      }
+      renderLoops();
+    }
+
+    function stopAllLoops() {
+      loops.forEach(loop => {
+        loop.playing = false;
+        loop.scheduledCycleMarks.clear();
+      });
+      renderLoops();
+      setStatus('All loops stopped');
+    }
+
+    function deleteLoop(loopId) {
+      const idx = loops.findIndex(l => l.id === loopId);
+      if (idx >= 0) loops.splice(idx, 1);
+      renderLoops();
+    }
+
+    function renderLoops() {
+      els.loopsList.innerHTML = '';
+
+      if (loops.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'pill';
+        empty.textContent = 'No saved loops yet.';
+        els.loopsList.appendChild(empty);
+        return;
+      }
+
+      loops.forEach(loop => {
+        const item = document.createElement('div');
+        item.className = 'loop-item';
+        item.innerHTML = `
+          <div class="loop-meta">
+            <span class="loop-name">${escapeHtml(loop.name)}</span>
+            <span>${loop.events.length} events</span>
+            <span>${loop.duration.toFixed(2)}s</span>
+            <span>${loop.playing ? 'Playing' : 'Stopped'}</span>
+          </div>
+          <button class="${loop.playing ? 'active' : ''}" data-action="play">${loop.playing ? 'Stop' : 'Play'}</button>
+          <button data-action="delete">Delete</button>
+          <button data-action="solo">Solo</button>
+        `;
+
+        item.querySelector('[data-action="play"]').addEventListener('click', () => toggleLoop(loop.id));
+        item.querySelector('[data-action="delete"]').addEventListener('click', () => deleteLoop(loop.id));
+        item.querySelector('[data-action="solo"]').addEventListener('click', () => {
+          loops.forEach(l => {
+            if (l.id !== loop.id) {
+              l.playing = false;
+              l.scheduledCycleMarks.clear();
+            }
+          });
+          loop.playing = true;
+          loop.startTime = ctx ? ctx.currentTime + 0.05 : 0;
+          loop.scheduledCycleMarks.clear();
+          renderLoops();
+          setStatus(`${loop.name} soloing`);
+          ensureAudio();
+        });
+
+        els.loopsList.appendChild(item);
+      });
+    }
+
+    function schedulerTick() {
+      if (!schedulerRunning) return;
+      if (ctx) {
+        const now = ctx.currentTime;
+        lastSchedulerTime = now;
+
+        const lookAhead = 0.12;
+
+        loops.forEach(loop => {
+          if (!loop.playing) return;
+          if (loop.events.length === 0) return;
+
+          const elapsed = Math.max(0, now - loop.startTime);
+          const cycle = Math.floor(elapsed / loop.duration);
+          const cyclePos = elapsed % loop.duration;
+          const endPos = cyclePos + lookAhead;
+
+          // keep the schedule map from growing too much
+          if (loop.scheduledCycleMarks.size > 20) {
+            const minKeep = cycle - 2;
+            for (const key of loop.scheduledCycleMarks.keys()) {
+              if (key < minKeep) loop.scheduledCycleMarks.delete(key);
+            }
+          }
+
+          const scheduleEvent = (event, eventIndex, targetCycle) => {
+            const markerKey = `${targetCycle}:${eventIndex}`;
+            if (loop.scheduledCycleMarks.has(markerKey)) return;
+            loop.scheduledCycleMarks.set(markerKey, true);
+            const targetTime = loop.startTime + targetCycle * loop.duration + event.time;
+            triggerPad(event.padIndex, { when: targetTime, fromLoop: true, record: false });
+          };
+
+          loop.events.forEach((event, eventIndex) => {
+            // current cycle
+            if (event.time >= cyclePos && event.time < Math.min(endPos, loop.duration)) {
+              scheduleEvent(event, eventIndex, cycle);
+            }
+            // wrapped lookahead into next cycle
+            if (endPos >= loop.duration) {
+              const wrappedEnd = endPos - loop.duration;
+              if (event.time < wrappedEnd) {
+                scheduleEvent(event, eventIndex, cycle + 1);
+              }
+            }
+          });
+        });
+      }
+      requestAnimationFrame(schedulerTick);
+    }
+
+    // Keyboard input
+    document.addEventListener('keydown', async (e) => {
+      const key = e.key.toLowerCase();
+      if (activeKeys.has(key)) return;
+      activeKeys.add(key);
+
+      const padIndex = keyToPad.get(key);
+      if (padIndex === undefined) return;
+
+      ensureAudio();
+      triggerPad(padIndex, { record: true });
+    });
+
+    document.addEventListener('keyup', (e) => {
+      activeKeys.delete(e.key.toLowerCase());
+    });
+
+    // Controls
+    els.recordBtn.addEventListener('click', () => {
+      ensureAudio();
+      startRecording();
+    });
+
+    els.stopBtn.addEventListener('click', () => {
+      ensureAudio();
+      stopAndSaveRecording();
+    });
+
+    els.stopAllBtn.addEventListener('click', () => {
+      ensureAudio();
+      stopAllLoops();
+    });
+
+    // Initial render
+    renderPads();
+    renderLoops();
+    setStatus('Ready');
+  </script>
+</body>
+</html>
